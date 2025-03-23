@@ -58,7 +58,7 @@ export const sendMessage = async (req,res) => {
         });
 
         await newMessage.save();
-
+        
         // Socket IO
         const receiverSocketId = getReceiverSocketId(receiverId);
         if(receiverSocketId) {
@@ -71,3 +71,46 @@ export const sendMessage = async (req,res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const senderId = req.user._id;
+
+    const message = await Message.findOne({
+      _id: messageId,
+      senderId: senderId,
+    });
+
+    if (!message) {
+      return res
+        .status(404)
+        .json({
+          message:
+            "Deletion Failed!",
+        });
+    }
+
+    message.text = null;
+    message.image = null;
+    message.isDeleted = true;
+
+    await message.save();
+
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    
+    const senderSocketId = getReceiverSocketId(senderId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", message);
+    }
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageDeleted", message);
+    }
+    res.status(200).json({ message: "Message deleted successfully." });
+  } catch (error) {
+    console.log("Error in DeleteMessage Controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+

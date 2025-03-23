@@ -65,4 +65,33 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
+
+  deleteMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/messages/delete/${messageId}`);
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  },
+
+  listenForDeletedMessages: () => {
+    const socket = useAuthStore.getState().socket;
+
+    if (!socket) {
+      console.warn("Socket not found, can't listen for deleted messages.");
+      return;
+    }
+
+    socket.off("messageDeleted");
+
+    socket.on("messageDeleted", (deletedMessage) => {
+      set((state) => ({
+        messages: state.messages.map((message) =>
+          message._id === deletedMessage._id
+            ? deletedMessage 
+            : message
+        ),
+      }));
+    });
+  },
 }));
