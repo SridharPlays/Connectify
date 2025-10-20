@@ -10,9 +10,10 @@ import job from "./lib/job.js";
 
 import path from "path";
 
+dotenv.config();
+
 if(process.env.NODE_ENV === 'production') job.start();
 
-dotenv.config();
 
 const PORT = process.env.PORT;
 const __dirname = path.resolve();
