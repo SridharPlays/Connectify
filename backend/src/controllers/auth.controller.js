@@ -6,7 +6,7 @@ import cloudinary from "../lib/cloudinary.js"
 export const signup = async (req, res) => {
     const { fullName, email, password } = req.body;
     try {
-        if (!fullName && !email && !password) {
+        if (!fullName || !email || !password) {
             return res.status(400).json({ message: "All Fields are Required!" });
         }
         if (password.length < 6) {
@@ -93,8 +93,7 @@ export const updateProfile = async (req, res) => {
 export const checkAuth = (req, res) => {
     try {
         res.status(200).json(req.user);
-    } catch {
-        console.log("Error in CheckAuth Controller", error.message);
+    } catch(error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }

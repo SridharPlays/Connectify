@@ -6,9 +6,11 @@ import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 import cors from "cors"
 import {app, io, server} from "./lib/socket.js"
+import job from "./lib/job.js";
 
 import path from "path";
 
+if(process.env.NODE_ENV === 'production') job.start();
 
 dotenv.config();
 
@@ -25,6 +27,13 @@ app.use(cors({
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+
+app.get("/api/health", (req, res) => {
+    res.status(200).json({
+        status: "ok",
+        message: "Server is running smoothly",
+    }); 
+});
 
 if(process.env.NODE_ENV==="production") {
     app.use(express.static(path.join(__dirname, "../frontend/dist")));
