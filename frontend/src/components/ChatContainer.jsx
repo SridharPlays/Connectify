@@ -13,7 +13,7 @@ const ChatContainer = () => {
     messages,
     getMessages,
     isMessagesLoading,
-    selectedUser,
+    selectedConversation, // Changed
     subscribeToMessages,
     unsubscribeFromMessages,
     deleteMessage,
@@ -23,12 +23,13 @@ const ChatContainer = () => {
   const messageEndRef = useRef(null);
 
   useEffect(() => {
-    getMessages(selectedUser._id);
+    // getMessages is now parameter-free, it uses the store's state
+    getMessages(); 
     subscribeToMessages();
     listenForDeletedMessages();
     return () => unsubscribeFromMessages();
   }, [
-    selectedUser._id,
+    selectedConversation._id, // Re-run when conversation changes
     getMessages,
     subscribeToMessages,
     unsubscribeFromMessages,
@@ -40,6 +41,16 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const getSenderInfo = (senderId) => {
+    if (senderId === authUser._id) {
+        return authUser;
+    }
+
+    const sender = selectedConversation.participants.find(p => p._id === senderId);
+    return sender || { fullName: "User", profilePic: "/avatar.png" }; // Fallback
+  };
+
 
   if (isMessagesLoading) {
     return (
@@ -61,9 +72,10 @@ const ChatContainer = () => {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => {
-          const isSenderAuthUser = message.senderId === authUser._id;
-          const currentUser = isSenderAuthUser ? authUser : selectedUser;
-
+          const isSenderAuthUser = message.senderId._id === authUser._id;
+          
+          const currentUser = message.senderId; 
+          
           const profilePic = currentUser.profilePic;
           const initial = currentUser.fullName
             ? currentUser.fullName[0].toUpperCase()
@@ -81,7 +93,7 @@ const ChatContainer = () => {
                 <div className="size-10 rounded-full border-2 border-slate-500/20 overflow-hidden">
                   {profilePic ? (
                     <img
-                      src={profilePic}
+                      src={profilePic || "/avatar.png"} 
                       alt="profile pic"
                       className="w-full h-full object-cover"
                     />
@@ -99,6 +111,13 @@ const ChatContainer = () => {
                     : "bg-base-200 text-base-content"
                 } flex flex-col relative group`}
               >
+                {/* Show sender name in group chats */}
+                {!isSenderAuthUser && selectedConversation.isGroupChat && (
+                    <div className="text-xs font-bold opacity-60 mb-1">
+                        {currentUser.fullName}
+                    </div>
+                )}
+                
                 {message.isDeleted ? (
                   <p className="italic text-sm opacity-70">
                     This message was deleted
