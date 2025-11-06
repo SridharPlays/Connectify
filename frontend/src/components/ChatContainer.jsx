@@ -6,6 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils.js";
+import { Trash2 } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -86,15 +87,10 @@ const ChatContainer = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-base-300 flex items-center justify-center">
-                      <span className="text-xl font-medium">{initial}</span>
+                      <span className="text-xl font-medium select-none">{initial}</span>
                     </div>
                   )}
                 </div>
-              </div>
-              <div className="chat-header mb-1">
-                <time className="text-xs opacity-50 ml-1">
-                  {formatMessageTime(message.createdAt)}
-                </time>
               </div>
               <div
                 className={`chat-bubble ${
@@ -126,12 +122,15 @@ const ChatContainer = () => {
                     title="Delete Message"
                     onClick={() => handleDeleteMessage(message._id)}
                   >
-                    <ion-icon
-                      name="trash-outline"
-                      className="text-sm p-6 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors"
-                    ></ion-icon>
+                    <Trash2 className="text-xs p-1 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors" />
                   </div>
                 )}
+                
+                <div className="hidden group-hover:flex transition-all duration-500 justify-start">
+                  <time className="text-[10px] opacity-50">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </div>
               </div>
             </div>
           );
