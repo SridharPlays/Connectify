@@ -4,7 +4,7 @@ import { useChatStore } from "../store/useChatStore";
 
 const ChatHeader = () => {
   const { selectedConversation, setSelectedConversation } = useChatStore();
-  const { onlineUsers } = useAuthStore(); // Removed authUser
+  const { onlineUsers } = useAuthStore();
 
   const getHeaderInfo = () => {
     if (selectedConversation.isGroupChat) {

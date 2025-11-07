@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X } from "lucide-react";
+import { Image, Send, X, Smile } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -71,6 +71,13 @@ const MessageInput = () => {
 
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
+          <button
+            type="button"
+            className={`hidden sm:flex btn btn-circle`}
+            title="Emojis"
+          >
+            <Smile size={24} />
+          </button>
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-sm sm:input-md"

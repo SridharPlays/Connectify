@@ -119,10 +119,10 @@ const Sidebar = () => {
                 </div>
 
                 <div className="hidden lg:block text-left min-w-0">
-                  <div className="font-medium truncate">{name}</div>
+                  <div className="font-medium truncate">{name} </div>
                   <div className="text-sm text-base-content/70 truncate">
                     {latestMessageText 
-                      ? `${latestMessageSender || '...'} ${latestMessageText}` 
+                      ? `${latestMessageSender || '...'}: ${latestMessageText}` 
                       : (convo.isGroupChat ? "Group created" : "Chat started")}
                   </div>
                 </div>
