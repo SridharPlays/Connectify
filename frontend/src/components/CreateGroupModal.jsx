@@ -63,7 +63,7 @@ const CreateGroupModal = ({ onClose }) => {
                     checked={selectedUsers.includes(user._id)}
                     onChange={() => handleUserSelect(user._id)}
                   />
-                  {/* --- AVATAR LOGIC START --- */}
+                  {/* AVATAR LOGIC START */}
                   <div className="avatar">
                     <div className="size-8 rounded-full border-2 border-base-300/20 overflow-hidden">
                       {profilePic ? (
@@ -79,7 +79,7 @@ const CreateGroupModal = ({ onClose }) => {
                       )}
                     </div>
                   </div>
-                  {/* --- AVATAR LOGIC END --- */}
+                  {/* AVATAR LOGIC END */}
                   <span className="label-text">{user.fullName}</span> 
                 </label>
               );

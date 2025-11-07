@@ -11,6 +11,29 @@ export const useChatStore = create((set, get) => ({
   isConversationsLoading: false,
   isMessagesLoading: false,
 
+  // Helper function to update conversation list
+  updateConversationInList: (updatedConvo) => {
+    // The backend returns all participants, we need to filter out the auth user
+    // for consistent frontend display
+    const authUserId = useAuthStore.getState().authUser._id;
+    const filteredConvo = {
+      ...updatedConvo,
+      participants: updatedConvo.participants.filter(
+        (p) => p._id.toString() !== authUserId.toString()
+      ),
+    };
+
+    set(state => ({
+        conversations: state.conversations.map(c => 
+            c._id === filteredConvo._id ? filteredConvo : c
+        ),
+        // Also update the selectedConversation if it's the one being edited
+        selectedConversation: state.selectedConversation?._id === filteredConvo._id 
+            ? filteredConvo 
+            : state.selectedConversation
+    }));
+  },
+
   getAllUsers: async () => {
     try {
       const res = await axiosInstance.get("/messages/users");
@@ -109,7 +132,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedConversation: (conversation) => {
-    set({ selectedConversation: conversation, messages: [] }); // Also reset messages on select
+    set({ selectedConversation: conversation, messages: [] });
     get().getMessages();
   },
   
@@ -155,14 +178,11 @@ export const useChatStore = create((set, get) => ({
 
   listenForDeletedMessages: () => {
     const socket = useAuthStore.getState().socket;
-
     if (!socket) {
       console.warn("Socket not found, can't listen for deleted messages.");
       return;
     }
-
     socket.off("messageDeleted");
-
     socket.on("messageDeleted", (deletedMessage) => {
       set((state) => ({
         messages: state.messages.map((message) =>
@@ -173,4 +193,55 @@ export const useChatStore = create((set, get) => ({
       }));
     });
   },
+
+  // NEW ACTIONS FOR GROUP MANAGEMENT
+
+  updateGroupDetails: async (conversationId, data) => {
+    try {
+      const res = await axiosInstance.put(`/conversations/${conversationId}/update`, data);
+      get().updateConversationInList(res.data);
+      toast.success("Group updated!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update group");
+    }
+  },
+
+  addParticipant: async (conversationId, userIdToAdd) => {
+    try {
+      const res = await axiosInstance.put(`/conversations/${conversationId}/add`, { userIdToAdd });
+      get().updateConversationInList(res.data);
+      toast.success("User added!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add user");
+    }
+  },
+
+  removeParticipant: async (conversationId, participantId) => {
+    try {
+      const res = await axiosInstance.put(`/conversations/${conversationId}/remove/${participantId}`);
+      get().updateConversationInList(res.data);
+      toast.success("User removed!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove user");
+    }
+  },
+
+  leaveGroup: async (conversationId, callback) => {
+    try {
+      await axiosInstance.post(`/conversations/${conversationId}/leave`);
+      
+      // Remove from conversation list and unselect
+      set(state => ({
+        conversations: state.conversations.filter(c => c._id !== conversationId),
+        selectedConversation: state.selectedConversation?._id === conversationId 
+          ? null 
+          : state.selectedConversation
+      }));
+      toast.success("You left the group");
+      if (callback) callback();
+
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to leave group");
+    }
+  }
 }));

@@ -92,7 +92,7 @@ const Sidebar = () => {
                 `}
               >
                 <div className="relative mx-auto lg:mx-0">
-                  {/* --- AVATAR LOGIC START --- */}
+                  {/* AVATAR LOGIC START */}
                   <div className="avatar">
                     <div className="size-12 rounded-full border-2 border-base-300/20 overflow-hidden">
                       {pic ? (
@@ -108,7 +108,7 @@ const Sidebar = () => {
                       )}
                     </div>
                   </div>
-                  {/* --- AVATAR LOGIC END --- */}
+                  {/* AVATAR LOGIC END */}
 
                   {isOnline && (
                     <span

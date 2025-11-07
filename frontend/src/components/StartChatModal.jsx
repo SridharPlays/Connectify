@@ -29,7 +29,7 @@ const StartChatModal = ({ onClose }) => {
                 className="w-full flex items-center gap-3 p-2 hover:bg-base-200 rounded-lg"
                 onClick={() => handleUserClick(user._id)}
               >
-                {/* --- AVATAR LOGIC START --- */}
+                {/* AVATAR LOGIC START */}
                 <div className="avatar">
                   <div className="size-10 rounded-full border-2 border-base-300/20 overflow-hidden">
                     {profilePic ? (
@@ -45,7 +45,7 @@ const StartChatModal = ({ onClose }) => {
                     )}
                   </div>
                 </div>
-                {/* --- AVATAR LOGIC END --- */}
+                {/* AVATAR LOGIC END */}
                 <span className="label-text">{user.fullName}</span>
               </button>
             );
