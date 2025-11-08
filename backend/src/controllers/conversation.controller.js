@@ -4,15 +4,19 @@ import cloudinary from "../lib/cloudinary.js";
 
 const checkAdmin = async (conversationId, userId) => {
   const conversation = await Conversation.findById(conversationId);
+
   if (!conversation) {
     throw new Error("Conversation not found");
   }
+
   if (!conversation.isGroupChat) {
     throw new Error("This is not a group chat");
   }
+
   if (conversation.groupAdmin.toString() !== userId.toString()) {
     throw new Error("You are not the admin of this group");
   }
+
   return conversation;
 };
 
@@ -55,7 +59,7 @@ export const findOrCreateConversation = async (req, res) => {
 
     const authUser = await User.findById(authUserId);
     if (!authUser.friends.includes(otherUserId)) {
-        return res.status(403).json({ message: "You can only start chats with friends." });
+      return res.status(403).json({ message: "You can only start chats with friends." });
     }
 
     let conversation = await Conversation.findOne({
@@ -64,10 +68,10 @@ export const findOrCreateConversation = async (req, res) => {
     }).populate("participants", "fullName profilePic email username");
 
     if (conversation) {
-        conversation.participants = conversation.participants.filter(
-            (p) => p._id.toString() !== authUserId.toString()
-        );
-        return res.status(200).json(conversation);
+      conversation.participants = conversation.participants.filter(
+        (p) => p._id.toString() !== authUserId.toString()
+      );
+      return res.status(200).json(conversation);
     }
 
     const newConversation = new Conversation({
@@ -76,12 +80,12 @@ export const findOrCreateConversation = async (req, res) => {
     });
 
     await newConversation.save();
-    
+
     let newConvo = await Conversation.findById(newConversation._id)
-        .populate("participants", "fullName profilePic email username");
+      .populate("participants", "fullName profilePic email username");
 
     newConvo.participants = newConvo.participants.filter(
-        (p) => p._id.toString() !== authUserId.toString()
+      (p) => p._id.toString() !== authUserId.toString()
     );
 
     res.status(201).json(newConvo);
@@ -94,17 +98,17 @@ export const findOrCreateConversation = async (req, res) => {
 export const createGroupChat = async (req, res) => {
   try {
     const authUserId = req.user._id;
-    const { groupName, participants } = req.body; // participants is an array of user IDs
+    const { groupName, participants } = req.body;
 
     if (!groupName || !participants || participants.length < 2) {
       return res.status(400).json({ message: "Group name and at least 2 participants are required." });
     }
-    
+
     const authUser = await User.findById(authUserId).select("friends");
     for (const participantId of participants) {
-        if (!authUser.friends.includes(participantId)) {
-            return res.status(403).json({ message: "You can only create groups with users who are on your friends list." });
-        }
+      if (!authUser.friends.includes(participantId)) {
+        return res.status(403).json({ message: "You can only create groups with users who are on your friends list." });
+      }
     }
 
     const allParticipants = [authUserId, ...participants];
@@ -151,7 +155,7 @@ export const updateGroupDetails = async (req, res) => {
     const updatedConvo = await Conversation.findById(conversationId)
       .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
-      
+
     res.status(200).json(updatedConvo);
   } catch (error) {
     console.error("Error in updateGroupDetails: ", error.message);
@@ -169,7 +173,7 @@ export const addParticipant = async (req, res) => {
 
     const authUser = await User.findById(authUserId).select("friends");
     if (!authUser.friends.includes(userIdToAdd)) {
-        return res.status(403).json({ message: "You can only add users from your friends list." });
+      return res.status(403).json({ message: "You can only add users from your friends list." });
     }
 
     if (conversation.participants.includes(userIdToAdd)) {
@@ -178,7 +182,7 @@ export const addParticipant = async (req, res) => {
 
     conversation.participants.push(userIdToAdd);
     await conversation.save();
-    
+
     const updatedConvo = await Conversation.findById(conversationId)
       .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
@@ -196,9 +200,9 @@ export const removeParticipant = async (req, res) => {
     const authUserId = req.user._id;
 
     const conversation = await checkAdmin(conversationId, authUserId);
-    
+
     if (participantId === authUserId.toString()) {
-         return res.status(400).json({ message: "Admin cannot be removed" });
+      return res.status(400).json({ message: "Admin cannot be removed" });
     }
 
     conversation.participants = conversation.participants.filter(
@@ -228,9 +232,9 @@ export const leaveGroup = async (req, res) => {
       return res.status(404).json({ message: "Conversation not found" });
     }
     if (!conversation.isGroupChat) {
-       return res.status(400).json({ message: "Cannot leave a 1-on-1 chat" });
+      return res.status(400).json({ message: "Cannot leave a 1-on-1 chat" });
     }
-    
+
     const isParticipant = conversation.participants.some(id => id.toString() === authUserId.toString());
     if (!isParticipant) {
       return res.status(403).json({ message: "You are not a member of this group" });
@@ -238,7 +242,7 @@ export const leaveGroup = async (req, res) => {
 
     if (conversation.groupAdmin.toString() === authUserId.toString()) {
       const newAdmin = conversation.participants.find(id => id.toString() !== authUserId.toString());
-      
+
       if (newAdmin) {
         conversation.groupAdmin = newAdmin;
       } else {
@@ -259,7 +263,7 @@ export const leaveGroup = async (req, res) => {
     res.status(200).json({ message: "Successfully left the group" });
 
   } catch (error) {
-     console.error("Error in leaveGroup: ", error.message);
+    console.error("Error in leaveGroup: ", error.message);
     res.status(500).json({ message: error.message || "Internal Server Error" });
   }
 }

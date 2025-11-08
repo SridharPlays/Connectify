@@ -1,9 +1,6 @@
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
 
-/**
- * Search for users by username
- */
 export const searchUsers = async (req, res) => {
   try {
     const { username } = req.query;
@@ -13,8 +10,6 @@ export const searchUsers = async (req, res) => {
       return res.status(400).json({ message: "Username query is required" });
     }
 
-    // Find users whose username matches the query, are not the user themselves,
-    // and are not already friends.
     const users = await User.find({
       username: { $regex: username, $options: "i" },
       _id: { $ne: authUserId },
@@ -27,9 +22,6 @@ export const searchUsers = async (req, res) => {
   }
 };
 
-/**
- * Send a friend request
- */
 export const sendFriendRequest = async (req, res) => {
   try {
     const { userIdToRequest } = req.params;
@@ -75,9 +67,6 @@ export const sendFriendRequest = async (req, res) => {
   }
 };
 
-/**
- * Accept a friend request
- */
 export const acceptFriendRequest = async (req, res) => {
   try {
     const { userIdToAccept } = req.params;
@@ -92,24 +81,20 @@ export const acceptFriendRequest = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if a request was actually received
     if (!authUser.friendRequestsReceived.includes(userIdToAccept)) {
       return res.status(400).json({ message: "No friend request found from this user" });
     }
 
-    // Perform the "accept" logic
-    // 1. Remove from authUser's received list
     authUser.friendRequestsReceived = authUser.friendRequestsReceived.filter(
       (id) => id.toString() !== userIdToAccept
     );
-    // 2. Add to authUser's friends list
+
     authUser.friends.push(userIdToAccept);
 
-    // 3. Remove from userToAccept's sent list
     userToAccept.friendRequestsSent = userToAccept.friendRequestsSent.filter(
       (id) => id.toString() !== authUserId.toString()
     );
-    // 4. Add to userToAccept's friends list
+
     userToAccept.friends.push(authUserId);
 
     await Promise.all([authUser.save(), userToAccept.save()]);
@@ -123,9 +108,6 @@ export const acceptFriendRequest = async (req, res) => {
   }
 };
 
-/**
- * Reject a friend request
- */
 export const rejectFriendRequest = async (req, res) => {
   try {
     const { userIdToReject } = req.params;
@@ -140,12 +122,10 @@ export const rejectFriendRequest = async (req, res) => {
         return res.status(404).json({ message: "User not found" });
     }
 
-    // 1. Remove from authUser's received list
     authUser.friendRequestsReceived = authUser.friendRequestsReceived.filter(
       (id) => id.toString() !== userIdToReject
     );
 
-    // 2. Remove from userToReject's sent list
     userToReject.friendRequestsSent = userToReject.friendRequestsSent.filter(
       (id) => id.toString() !== authUserId.toString()
     );
@@ -159,9 +139,6 @@ export const rejectFriendRequest = async (req, res) => {
   }
 };
 
-/**
- * Get all pending friend requests for the auth user
- */
 export const getPendingRequests = async (req, res) => {
   try {
     const authUserId = req.user._id;
@@ -181,9 +158,6 @@ export const getPendingRequests = async (req, res) => {
   }
 };
 
-/**
- * Get all friends for the auth user
- */
 export const getFriends = async (req, res) => {
   try {
     const authUserId = req.user._id;
@@ -203,9 +177,6 @@ export const getFriends = async (req, res) => {
   }
 };
 
-/**
- * Remove a friend
- */
 export const removeFriend = async (req, res) => {
   try {
     const { userIdToRemove } = req.params;
@@ -220,11 +191,10 @@ export const removeFriend = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 1. Remove from authUser's friends list
     authUser.friends = authUser.friends.filter(
       (id) => id.toString() !== userIdToRemove
     );
-    // 2. Remove from userToRemove's friends list
+
     userToRemove.friends = userToRemove.friends.filter(
       (id) => id.toString() !== authUserId.toString()
     );

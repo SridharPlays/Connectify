@@ -4,18 +4,18 @@ import Conversation from "../models/conversation.model.js"
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
-export const getUsersForSidebar = async (req,res) => {
+export const getUsersForSidebar = async (req, res) => {
     try {
         const loggedInUserId = req.user._id;
-        const filteredUsers = await User.find({_id: { $ne: loggedInUserId}}).select("-password");
+        const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
         res.status(200).json(filteredUsers);
-    } catch (error) {       
+    } catch (error) {
         console.error("Error in GetUser Function", error.message);
         res.status(500).json({ message: "Internal Server Error" });
-    } 
+    }
 };
 
-export const getMessages = async (req,res) => {
+export const getMessages = async (req, res) => {
     try {
         const { conversationId } = req.params;
         const authUserId = req.user._id;
@@ -43,8 +43,8 @@ export const getMessages = async (req,res) => {
         const messages = await Message.find({
             conversationId: conversationId,
         })
-        .populate("senderId", "fullName profilePic")
-        .populate("readBy", "fullName profilePic _id"); 
+            .populate("senderId", "fullName profilePic")
+            .populate("readBy", "fullName profilePic _id");
 
         const readByUser = {
             _id: req.user._id,
@@ -73,14 +73,14 @@ export const getMessages = async (req,res) => {
 }
 
 
-export const sendMessage = async (req,res) => {
+export const sendMessage = async (req, res) => {
     try {
         const { text, image } = req.body;
         const { conversationId } = req.params;
         const senderId = req.user._id;
 
         let imageUrl;
-        if(image) {
+        if (image) {
             const uploadResponse = await cloudinary.uploader.upload(image);
             imageUrl = uploadResponse.secure_url;
         }
@@ -94,7 +94,7 @@ export const sendMessage = async (req,res) => {
             return res.status(404).json({ message: "Conversation not found" });
         }
 
-        const newMessage = new Message( {
+        const newMessage = new Message({
             senderId,
             conversationId,
             text,
@@ -108,7 +108,7 @@ export const sendMessage = async (req,res) => {
                 latestMessage: newMessage._id,
             })
         ]);
-        
+
         const messageWithSender = await newMessage.populate("senderId", "fullName profilePic");
         const finalMessage = await messageWithSender.populate("readBy", "fullName profilePic _id");
 
@@ -128,40 +128,40 @@ export const sendMessage = async (req,res) => {
 }
 
 export const deleteMessage = async (req, res) => {
-  try {
-    const { id: messageId } = req.params;
-    const senderId = req.user._id;
+    try {
+        const { id: messageId } = req.params;
+        const senderId = req.user._id;
 
-    const message = await Message.findOne({
-      _id: messageId,
-      senderId: senderId,
-    });
+        const message = await Message.findOne({
+            _id: messageId,
+            senderId: senderId,
+        });
 
-    if (!message) {
-      return res.status(404).json({ message: "Deletion Failed!" });
-    }
-
-    const conversation = await Conversation.findById(message.conversationId);
-    if (!conversation) {
-        return res.status(404).json({ message: "Conversation not found" });
-    }
-
-    message.text = null;
-    message.image = null;
-    message.isDeleted = true;
-    
-    await message.save();
-    
-    conversation.participants.forEach(participantId => {
-        const socketId = getReceiverSocketId(participantId.toString());
-        if (socketId) {
-            io.to(socketId).emit("messageDeleted", message);
+        if (!message) {
+            return res.status(404).json({ message: "Deletion Failed!" });
         }
-    });
 
-    res.status(200).json({ message: "Message deleted successfully." });
-  } catch (error) {
-    console.log("Error in DeleteMessage Controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+        const conversation = await Conversation.findById(message.conversationId);
+        if (!conversation) {
+            return res.status(404).json({ message: "Conversation not found" });
+        }
+
+        message.text = null;
+        message.image = null;
+        message.isDeleted = true;
+
+        await message.save();
+
+        conversation.participants.forEach(participantId => {
+            const socketId = getReceiverSocketId(participantId.toString());
+            if (socketId) {
+                io.to(socketId).emit("messageDeleted", message);
+            }
+        });
+
+        res.status(200).json({ message: "Message deleted successfully." });
+    } catch (error) {
+        console.log("Error in DeleteMessage Controller", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 };

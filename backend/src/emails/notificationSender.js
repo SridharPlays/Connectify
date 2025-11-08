@@ -17,7 +17,7 @@ const transportProtocol = nodemailer.createTransport(
 export const sendNotificationEmail = async (email, from) => {    
         try {
             const response = await transportProtocol.sendMail({
-                from: `"CINEFLIX" <${process.env.EMAIL_SENDER}>`,
+                from: `"Connectify" <${process.env.EMAIL_SENDER}>`,
                 to: email,
                 subject: "Connectify - A User has Sent a Message",
                 html: html,

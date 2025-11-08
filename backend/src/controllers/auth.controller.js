@@ -32,12 +32,12 @@ export const signup = async (req, res) => {
             generateToken(newUser._id, res);
             await newUser.save();
 
-            res.status(201).json({ 
-                _id: newUser._id, 
-                fullName: newUser.fullName, 
-                username: newUser.username, 
-                email: newUser.email, 
-                profilePic: newUser.profilePic 
+            res.status(201).json({
+                _id: newUser._id,
+                fullName: newUser.fullName,
+                username: newUser.username,
+                email: newUser.email,
+                profilePic: newUser.profilePic
             });
         } else {
             return res.status(400).json({ message: "Invalid User Data" });
@@ -66,13 +66,13 @@ export const login = async (req, res) => {
             return res.status(400).json({ message: "Invalid Credentials! " });
         }
         generateToken(user._id, res);
-        res.status(200).json({ 
-            _id: user._id, 
-            fullName: user.fullName, 
+        res.status(200).json({
+            _id: user._id,
+            fullName: user.fullName,
             username: user.username,
-            email: user.email, 
+            email: user.email,
             profilePic: user.profilePic,
-            usernameLastUpdatedAt: user.usernameLastUpdatedAt 
+            usernameLastUpdatedAt: user.usernameLastUpdatedAt
         });
     } catch (error) {
         console.log("Error in Login Controller", error.message);
@@ -100,7 +100,7 @@ export const updateProfile = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        
+
         let hasUpdated = false;
 
         if (profilePic) {
@@ -135,10 +135,10 @@ export const updateProfile = async (req, res) => {
         const updatedUser = await user.save();
 
         res.status(200).json({
-            _id: updatedUser._id, 
-            fullName: updatedUser.fullName, 
+            _id: updatedUser._id,
+            fullName: updatedUser.fullName,
             username: updatedUser.username,
-            email: updatedUser.email, 
+            email: updatedUser.email,
             profilePic: updatedUser.profilePic,
             usernameLastUpdatedAt: updatedUser.usernameLastUpdatedAt
         });
@@ -152,7 +152,7 @@ export const updateProfile = async (req, res) => {
 export const checkAuth = (req, res) => {
     try {
         res.status(200).json(req.user);
-    } catch(error) {
+    } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
