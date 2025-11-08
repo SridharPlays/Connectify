@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils.js";
-import { Trash2, Check, CheckCheck } from "lucide-react"; // Import Check and CheckCheck
+import { Trash2, Check, CheckCheck } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -18,7 +18,7 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
     deleteMessage,
     listenForDeletedMessages,
-    listenForMessagesRead, // 1. Import new listener
+    listenForMessagesRead,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -27,11 +27,10 @@ const ChatContainer = () => {
     getMessages(); 
     subscribeToMessages();
     listenForDeletedMessages();
-    listenForMessagesRead(); // 2. Call new listener
+    listenForMessagesRead();
     
     return () => {
       unsubscribeFromMessages();
-      // We'll add an unsubscribe in the store or here if needed
     };
   }, [
     selectedConversation._id,
@@ -39,7 +38,7 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
     listenForDeletedMessages,
-    listenForMessagesRead, // 3. Add to dependency array
+    listenForMessagesRead,
   ]);
 
   useEffect(() => {
@@ -78,7 +77,7 @@ const ChatContainer = () => {
           const profilePic = currentUser.profilePic;
           const initial = currentUser.fullName ? currentUser.fullName[0].toUpperCase() : "?";
 
-          // --- 4. Read Receipt Logic ---
+          // Read Receipt Logic 
           let readStatusIcon = null;
           if (isSenderAuthUser && !message.isDeleted) {
             const readByOthers = message.readBy.filter(
@@ -104,11 +103,10 @@ const ChatContainer = () => {
                 }
             }
           }
-          // --- End Read Receipt Logic ---
 
           return (
             <div
-              key={message._id || index} // Use index as fallback
+              key={message._id || index}
               className={`chat ${
                 isSenderAuthUser ? "chat-end" : "chat-start"
               }`}
@@ -169,7 +167,6 @@ const ChatContainer = () => {
                   </div>
                 )}
                 
-                {/* 5. Render Time and Read Status */}
                 <div className="flex items-center gap-1 justify-end transition-all duration-500 mt-1">
                   <time className="text-[10px] opacity-50">
                     {formatMessageTime(message.createdAt)}

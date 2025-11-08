@@ -19,8 +19,6 @@ export const useChatStore = create((set, get) => ({
 
   // Helper function
   updateConversationInList: (updatedConvo) => {
-    // The backend returns all participants, we need to filter out the auth user
-    // for consistent frontend display
     const authUserId = useAuthStore.getState().authUser._id;
     const filteredConvo = {
       ...updatedConvo,
@@ -33,7 +31,6 @@ export const useChatStore = create((set, get) => ({
         conversations: state.conversations.map(c => 
             c._id === filteredConvo._id ? filteredConvo : c
         ),
-        // Also update the selectedConversation if it's the one being edited
         selectedConversation: state.selectedConversation?._id === filteredConvo._id 
             ? filteredConvo 
             : state.selectedConversation
@@ -69,15 +66,12 @@ export const useChatStore = create((set, get) => ({
 
     set({ isMessagesLoading: true });
     try {
-      // This API call now marks messages as read on the backend
       const res = await axiosInstance.get(`/messages/${selectedConversation._id}`);
       set({ messages: res.data || [] });
       
-      // Mark the conversation as read in the sidebar (optimistic update)
       set(state => ({
         conversations: state.conversations.map(convo => {
           if (convo._id === selectedConversation._id && convo.latestMessage) {
-            // Check if authUser is already in readBy
             const authUserId = useAuthStore.getState().authUser._id;
             const alreadyRead = convo.latestMessage.readBy.some(id => id === authUserId || id._id === authUserId);
             if (!alreadyRead) {
@@ -124,7 +118,7 @@ export const useChatStore = create((set, get) => ({
               ...convo,
               latestMessage: {
                 ...newMessage, // Use the full message as latestMessage
-                senderId: { fullName: newMessage.senderId.fullName }, // Keep sender simple
+                senderId: { fullName: newMessage.senderId.fullName },
               },
             };
           }
@@ -138,7 +132,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
-    socket.off("newMessage"); // Prevent duplicate listeners
+    socket.off("newMessage");
     socket.on("newMessage", (newMessage) => {
       const { selectedConversation } = get();
       
@@ -180,11 +174,10 @@ export const useChatStore = create((set, get) => ({
       return;
     }
     
-    socket.off("messagesRead"); // Prevent duplicate listeners
+    socket.off("messagesRead");
     
     socket.on("messagesRead", ({ conversationId, readByUserId, readByUser }) => {
       set(state => {
-        // Update the conversation list
         const newConversations = state.conversations.map(convo => {
           if (convo._id === conversationId && convo.latestMessage) {
             const alreadyRead = convo.latestMessage.readBy.some(id => id === readByUserId || id._id === readByUserId);
@@ -239,7 +232,6 @@ export const useChatStore = create((set, get) => ({
   },
   
   // Friend & Group Actions
-  
   findOrCreateConversation: async (userId, callback) => {
     try {
         const res = await axiosInstance.post(`/conversations/find/${userId}`);

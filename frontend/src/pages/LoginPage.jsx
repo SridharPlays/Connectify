@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react"; // Import User
+import { Eye, EyeOff, Loader2, Lock, MessageSquare, User } from "lucide-react";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
-  // 1. Change 'email' to 'loginId'
   const [formData, setFormData] = useState({
     loginId: "",
     password: "",
@@ -39,7 +38,6 @@ const LoginPage = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 2. Update field to "Username or Email" */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Username or Email</span>
@@ -49,9 +47,9 @@ const LoginPage = () => {
                   <User className="h-5 w-5 text-base-content/40" />
                 </div>
                 <input
-                  type="text" // Changed from 'email' to 'text'
+                  type="text"
                   className={`input input-bordered w-full pl-10`}
-                  placeholder="johndoe or you@example.com"
+                  placeholder="girlypop or girlypop@gmail.com"
                   value={formData.loginId}
                   onChange={(e) => setFormData({ ...formData, loginId: e.target.value })}
                 />

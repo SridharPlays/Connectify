@@ -9,7 +9,7 @@ import SignUpPage from "./pages/SignUpPage";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 
-import { Import, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import { useThemeStore } from "./store/useThemeStore";
 

@@ -1,15 +1,14 @@
+/* eslint-disable react/prop-types */
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 
 const CreateGroupModal = ({ onClose }) => {
-  // 1. Get friends list instead of allUsers
   const { friends, getFriends, createGroup } = useChatStore();
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   useEffect(() => {
-    // 2. Fetch friends on load
     getFriends();
   }, [getFriends]);
 
@@ -53,7 +52,6 @@ const CreateGroupModal = ({ onClose }) => {
 
           <h3 className="text-lg font-semibold mb-2">Select Friends</h3>
           <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-            {/* 3. Map over friends list */}
             {friends.length === 0 && (
                 <p className="text-center text-base-content/70">You need at least 2 friends to create a group.</p>
             )}

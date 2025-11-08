@@ -1,14 +1,14 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Camera, Check, Loader2, LogOut, Shield, Trash2, UserPlus, X, Edit2 } from "lucide-react";
-import toast from "react-hot-toast";
 
 const GroupSettingsModal = ({ onClose }) => {
   const { 
     selectedConversation, 
-    friends, // 1. Get friends
-    getFriends, // 1. Get getFriends
+    friends,
+    getFriends,
     updateGroupDetails, 
     addParticipant, 
     removeParticipant,
@@ -25,12 +25,10 @@ const GroupSettingsModal = ({ onClose }) => {
 
   const isAdmin = selectedConversation.groupAdmin === authUser._id;
 
-  // 2. Fetch friends on mount
   useEffect(() => {
     getFriends();
   }, [getFriends]);
 
-  // 3. Filter FRIENDS who are NOT already in the group
   useEffect(() => {
     if (friends.length > 0) {
       const currentParticipantIds = selectedConversation.participants.map(p => p._id);
@@ -70,7 +68,7 @@ const GroupSettingsModal = ({ onClose }) => {
     const userIdToAdd = e.target.value;
     if (!userIdToAdd) return;
     await addParticipant(selectedConversation._id, userIdToAdd);
-    e.target.value = ""; // Reset dropdown
+    e.target.value = "";
   };
 
   // Handle Remove Participant
@@ -122,7 +120,7 @@ const GroupSettingsModal = ({ onClose }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto pr-2">
-          {/* Group Info (Pic + Name) */}
+          {/* Group Info */}
           <div className="flex flex-col items-center gap-4 mb-6">
             <div className="relative">
               {getAvatar({ fullName: groupName, profilePic: selectedImg || selectedConversation.groupIcon }, "size-32")}
@@ -189,7 +187,7 @@ const GroupSettingsModal = ({ onClose }) => {
             <h4 className="font-semibold mb-2">{selectedConversation.participants.length + 1} Members</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               
-              {/* Admin (display them first) */}
+              {/* Admin */}
               {adminUser && (
                 <div className="flex items-center justify-between p-2 rounded-lg">
                   <div className="flex items-center gap-3">

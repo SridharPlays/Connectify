@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, AtSign, Edit2, Check, X, Loader2, Info } from "lucide-react"; // Import new icons
+import { Camera, Mail, User, AtSign, Edit2, Check, X, Loader2, Info } from "lucide-react";
 import toast from "react-hot-toast";
 
 // Helper function to calculate cooldown
@@ -42,7 +42,6 @@ const ProfilePage = () => {
     reader.onload = async () => {
       const base64Image = reader.result;
       setSelectedImg(base64Image);
-      // The store's updateProfile action is generic, so this just works
       await updateProfile({ profilePic: base64Image });
     };
   };
@@ -58,7 +57,6 @@ const ProfilePage = () => {
         return toast.error("Username cannot contain spaces");
     }
 
-    // We pass the new username to the same updateProfile function
     await updateProfile({ username });
     setIsEditingUsername(false);
   };
@@ -106,9 +104,8 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* USER DETAILS SECTION */}
           <div className="space-y-6">
-            {/* Full Name (Not editable) */}
+            {/* Full Name */}
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <User className="w-4 h-4" />
@@ -117,7 +114,7 @@ const ProfilePage = () => {
               <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName}</p>
             </div>
 
-            {/* Username (Editable with Cooldown) */}
+            {/* Username */}
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <AtSign className="w-4 h-4" />
@@ -125,7 +122,6 @@ const ProfilePage = () => {
               </div>
               
               {isEditingUsername ? (
-                // EDITING STATE
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -142,7 +138,6 @@ const ProfilePage = () => {
                   </button>
                 </div>
               ) : (
-                // DISPLAY STATE
                 <div className="flex items-center gap-2">
                   <p className="px-4 py-2.5 bg-base-200 rounded-lg border flex-1">{authUser?.username}</p>
                   <button 
@@ -165,7 +160,7 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Email (Not editable) */}
+            {/* Email */}
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <Mail className="w-4 h-4" />

@@ -1,10 +1,10 @@
+/* eslint-disable react/prop-types */
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Check, MessageSquare, Search, Send, Trash2, UserPlus, Users, X, Bell } from "lucide-react";
 import toast from "react-hot-toast";
 
-// A small helper component for user avatars
 const Avatar = ({ user, size = "size-10" }) => {
   const initial = user.fullName ? user.fullName[0].toUpperCase() : "?";
   const profilePic = user.profilePic;
@@ -24,7 +24,6 @@ const Avatar = ({ user, size = "size-10" }) => {
   );
 };
 
-// TABS
 const FindUsersTab = () => {
   const [username, setUsername] = useState("");
   const { searchedUsers, searchUsers, sendFriendRequest } = useChatStore();
@@ -166,16 +165,14 @@ const MyFriendsTab = ({onClose}) => {
         </div>
     );
 };
-// END TABS
 
 
-// MAIN MODAL
 const FriendsModal = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState("friends"); // 'friends', 'pending', 'find'
+  const [activeTab, setActiveTab] = useState("friends");
   const { pendingRequests, getPendingRequests } = useChatStore();
 
   useEffect(() => {
-      getPendingRequests(); // Fetch on load to show badge
+      getPendingRequests();
   }, [getPendingRequests]);
 
   const TABS = [
