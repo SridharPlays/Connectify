@@ -1,8 +1,7 @@
 import Conversation from "../models/conversation.model.js";
 import User from "../models/user.model.js";
-import cloudinary from "../lib/cloudinary.js"; // Import cloudinary for image uploads
+import cloudinary from "../lib/cloudinary.js";
 
-// Helper function to check if user is admin
 const checkAdmin = async (conversationId, userId) => {
   const conversation = await Conversation.findById(conversationId);
   if (!conversation) {
@@ -17,8 +16,6 @@ const checkAdmin = async (conversationId, userId) => {
   return conversation;
 };
 
-// EXISTING FUNCTIONS (no change)
-
 export const getConversations = async (req, res) => {
   try {
     const authUserId = req.user._id;
@@ -26,11 +23,11 @@ export const getConversations = async (req, res) => {
     const conversations = await Conversation.find({ participants: authUserId })
       .populate({
         path: "participants",
-        select: "fullName profilePic email",
+        select: "fullName profilePic email username",
       })
       .populate({
         path: "latestMessage",
-        select: "text senderId createdAt",
+        select: "text senderId createdAt readBy",
         populate: {
           path: "senderId",
           select: "fullName",
@@ -56,10 +53,15 @@ export const findOrCreateConversation = async (req, res) => {
     const authUserId = req.user._id;
     const { userId: otherUserId } = req.params;
 
+    const authUser = await User.findById(authUserId);
+    if (!authUser.friends.includes(otherUserId)) {
+        return res.status(403).json({ message: "You can only start chats with friends." });
+    }
+
     let conversation = await Conversation.findOne({
       isGroupChat: false,
       participants: { $all: [authUserId, otherUserId] },
-    }).populate("participants", "fullName profilePic email");
+    }).populate("participants", "fullName profilePic email username");
 
     if (conversation) {
         conversation.participants = conversation.participants.filter(
@@ -76,7 +78,7 @@ export const findOrCreateConversation = async (req, res) => {
     await newConversation.save();
     
     let newConvo = await Conversation.findById(newConversation._id)
-        .populate("participants", "fullName profilePic email");
+        .populate("participants", "fullName profilePic email username");
 
     newConvo.participants = newConvo.participants.filter(
         (p) => p._id.toString() !== authUserId.toString()
@@ -89,14 +91,20 @@ export const findOrCreateConversation = async (req, res) => {
   }
 };
 
-
 export const createGroupChat = async (req, res) => {
   try {
     const authUserId = req.user._id;
-    const { groupName, participants } = req.body;
+    const { groupName, participants } = req.body; // participants is an array of user IDs
 
     if (!groupName || !participants || participants.length < 2) {
       return res.status(400).json({ message: "Group name and at least 2 participants are required." });
+    }
+    
+    const authUser = await User.findById(authUserId).select("friends");
+    for (const participantId of participants) {
+        if (!authUser.friends.includes(participantId)) {
+            return res.status(403).json({ message: "You can only create groups with users who are on your friends list." });
+        }
     }
 
     const allParticipants = [authUserId, ...participants];
@@ -111,7 +119,7 @@ export const createGroupChat = async (req, res) => {
     await newConversation.save();
 
     const groupChat = await Conversation.findById(newConversation._id)
-      .populate("participants", "fullName profilePic email")
+      .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
 
     res.status(201).json(groupChat);
@@ -121,11 +129,6 @@ export const createGroupChat = async (req, res) => {
   }
 };
 
-// NEW FUNCTIONS
-
-/**
- * Update Group Name or Icon
- */
 export const updateGroupDetails = async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -135,7 +138,6 @@ export const updateGroupDetails = async (req, res) => {
     const conversation = await checkAdmin(conversationId, authUserId);
 
     if (groupIconBase64) {
-      // User is uploading a new picture
       const uploadResponse = await cloudinary.uploader.upload(groupIconBase64);
       conversation.groupIcon = uploadResponse.secure_url;
     }
@@ -146,9 +148,8 @@ export const updateGroupDetails = async (req, res) => {
 
     await conversation.save();
 
-    // Return the fully populated conversation
     const updatedConvo = await Conversation.findById(conversationId)
-      .populate("participants", "fullName profilePic email")
+      .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
       
     res.status(200).json(updatedConvo);
@@ -158,9 +159,6 @@ export const updateGroupDetails = async (req, res) => {
   }
 };
 
-/**
- * Add a participant to the group
- */
 export const addParticipant = async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -168,6 +166,11 @@ export const addParticipant = async (req, res) => {
     const authUserId = req.user._id;
 
     const conversation = await checkAdmin(conversationId, authUserId);
+
+    const authUser = await User.findById(authUserId).select("friends");
+    if (!authUser.friends.includes(userIdToAdd)) {
+        return res.status(403).json({ message: "You can only add users from your friends list." });
+    }
 
     if (conversation.participants.includes(userIdToAdd)) {
       return res.status(400).json({ message: "User is already in the group" });
@@ -177,7 +180,7 @@ export const addParticipant = async (req, res) => {
     await conversation.save();
     
     const updatedConvo = await Conversation.findById(conversationId)
-      .populate("participants", "fullName profilePic email")
+      .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
 
     res.status(200).json(updatedConvo);
@@ -187,9 +190,6 @@ export const addParticipant = async (req, res) => {
   }
 };
 
-/**
- * Remove a participant from the group
- */
 export const removeParticipant = async (req, res) => {
   try {
     const { conversationId, participantId } = req.params;
@@ -208,7 +208,7 @@ export const removeParticipant = async (req, res) => {
     await conversation.save();
 
     const updatedConvo = await Conversation.findById(conversationId)
-      .populate("participants", "fullName profilePic email")
+      .populate("participants", "fullName profilePic email username")
       .populate("groupAdmin", "fullName");
 
     res.status(200).json(updatedConvo);
@@ -218,9 +218,6 @@ export const removeParticipant = async (req, res) => {
   }
 };
 
-/**
- * Leave a group (for any member)
- */
 export const leaveGroup = async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -234,21 +231,17 @@ export const leaveGroup = async (req, res) => {
        return res.status(400).json({ message: "Cannot leave a 1-on-1 chat" });
     }
     
-    // Check if user is actually a participant
     const isParticipant = conversation.participants.some(id => id.toString() === authUserId.toString());
     if (!isParticipant) {
       return res.status(403).json({ message: "You are not a member of this group" });
     }
 
-    // Handle admin leaving
     if (conversation.groupAdmin.toString() === authUserId.toString()) {
-      // Find a new admin (the first participant who is not the current admin)
       const newAdmin = conversation.participants.find(id => id.toString() !== authUserId.toString());
       
       if (newAdmin) {
         conversation.groupAdmin = newAdmin;
       } else {
-        // This is the last person leaving
         conversation.groupAdmin = null;
       }
     }
@@ -257,7 +250,6 @@ export const leaveGroup = async (req, res) => {
       (id) => id.toString() !== authUserId.toString()
     );
 
-    // If last participant leaves, you could optionally delete the group
     if (conversation.participants.length === 0) {
       await Conversation.findByIdAndDelete(conversationId);
       return res.status(200).json({ message: "Successfully left and deleted empty group" });

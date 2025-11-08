@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
-import { Plus, Users, MessageSquarePlus } from "lucide-react";
+import { Plus, Users, UserPlus } from "lucide-react";
 import CreateGroupModal from "./CreateGroupModal";
-import StartChatModal from "./StartChatModal";
+import FriendsModal from "./FriendsModal";
 
 const Sidebar = () => {
   const {
@@ -15,19 +15,19 @@ const Sidebar = () => {
     isConversationsLoading,
   } = useChatStore();
 
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, authUser } = useAuthStore();
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [showStartChatModal, setShowStartChatModal] = useState(false);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
 
   useEffect(() => {
     getConversations();
   }, [getConversations]);
-
+  
   const getConversationDisplayInfo = (convo) => {
     if (convo.isGroupChat) {
       return {
         name: convo.groupName,
-        pic: convo.groupIcon, // Groups can have a pic or just show an initial
+        pic: convo.groupIcon,
         isOnline: false,
       };
     } else {
@@ -47,6 +47,7 @@ const Sidebar = () => {
   return (
     <>
       <aside className="h-full w-20 lg:w-96 border-r border-base-300 flex flex-col transition-all duration-200">
+        {/* Header  */}
         <div className="border-b border-base-300 w-full p-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="size-6" />
@@ -55,10 +56,10 @@ const Sidebar = () => {
           <div className="hidden lg:flex items-center gap-1">
             <button
               className="btn btn-ghost btn-circle btn-sm"
-              title="New 1-on-1 Chat"
-              onClick={() => setShowStartChatModal(true)}
+              title="Friends"
+              onClick={() => setShowFriendsModal(true)}
             >
-              <MessageSquarePlus className="size-5" />
+              <UserPlus className="size-5" />
             </button>
             <button
               className="btn btn-ghost btn-circle btn-sm"
@@ -71,11 +72,17 @@ const Sidebar = () => {
         </div>
 
         <div className="overflow-y-auto w-full py-3">
+          {/* Conversation List */}
           {conversations.map((convo) => {
             const { name, pic, isOnline } = getConversationDisplayInfo(convo);
             const initial = name ? name[0].toUpperCase() : "?";
-            const latestMessageText = convo.latestMessage?.text;
-            const latestMessageSender = convo.latestMessage?.senderId?.fullName?.split(" ")[0];
+            const latestMessage = convo.latestMessage;
+            let isUnread = false;
+            if (latestMessage && latestMessage.senderId._id !== authUser._id) {
+                isUnread = !latestMessage.readBy.includes(authUser._id);
+            }
+            const latestMessageText = latestMessage?.text;
+            const latestMessageSender = latestMessage?.senderId?.fullName?.split(" ")[0];
 
             return (
               <button
@@ -92,7 +99,6 @@ const Sidebar = () => {
                 `}
               >
                 <div className="relative mx-auto lg:mx-0">
-                  {/* AVATAR LOGIC START */}
                   <div className="avatar">
                     <div className="size-12 rounded-full border-2 border-base-300/20 overflow-hidden">
                       {pic ? (
@@ -108,8 +114,6 @@ const Sidebar = () => {
                       )}
                     </div>
                   </div>
-                  {/* AVATAR LOGIC END */}
-
                   {isOnline && (
                     <span
                       className="absolute bottom-0 right-0 size-3 bg-green-500 
@@ -119,13 +123,19 @@ const Sidebar = () => {
                 </div>
 
                 <div className="hidden lg:block text-left min-w-0">
-                  <div className="font-medium truncate">{name} </div>
-                  <div className="text-sm text-base-content/70 truncate">
+                  <div className={`font-medium truncate ${isUnread ? "font-bold text-base-content" : ""}`}>
+                    {name}
+                  </div>
+                  <div className={`text-sm truncate ${isUnread ? "font-bold text-base-content/90" : "text-base-content/70"}`}>
                     {latestMessageText 
-                      ? `${latestMessageSender || '...'}: ${latestMessageText}` 
+                      ? `${latestMessageSender || '...'} ${latestMessageText}` 
                       : (convo.isGroupChat ? "Group created" : "Chat started")}
                   </div>
                 </div>
+                
+                {isUnread && (
+                    <div className="w-2.5 h-2.5 bg-primary rounded-full ml-auto"></div>
+                )}
               </button>
             );
           })}
@@ -133,7 +143,7 @@ const Sidebar = () => {
       </aside>
       
       {showGroupModal && <CreateGroupModal onClose={() => setShowGroupModal(false)} />}
-      {showStartChatModal && <StartChatModal onClose={() => setShowStartChatModal(false)} />}
+      {showFriendsModal && <FriendsModal onClose={() => setShowFriendsModal(false)} />}
     </>
   );
 };

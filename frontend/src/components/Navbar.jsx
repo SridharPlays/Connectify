@@ -17,16 +17,15 @@ const Navbar = () => {
               <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <MessageSquare className="w-5 h-5 text-primary" />
               </div>
-              <h1 className="text-lg font-bold">Connectify</h1>
+              <h1 className="text-lg font-bold font-[Poppins]">Connectify</h1>
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center space-x-2">
             <Link
               to={"/settings"}
               className={`
               btn btn-sm gap-2 transition-colors
-              
               `}
             >
               <Settings className="w-4 h-4" />

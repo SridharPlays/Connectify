@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react"; // Import User
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  // 1. Change 'email' to 'loginId'
   const [formData, setFormData] = useState({
-    email: "",
+    loginId: "",
     password: "",
   });
   const { login, isLoggingIn } = useAuthStore();
@@ -38,20 +39,21 @@ const LoginPage = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 2. Update field to "Username or Email" */}
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Email</span>
+                <span className="label-text font-medium">Username or Email</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-base-content/40" />
+                  <User className="h-5 w-5 text-base-content/40" />
                 </div>
                 <input
-                  type="email"
+                  type="text" // Changed from 'email' to 'text'
                   className={`input input-bordered w-full pl-10`}
-                  placeholder="you@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="johndoe or you@example.com"
+                  value={formData.loginId}
+                  onChange={(e) => setFormData({ ...formData, loginId: e.target.value })}
                 />
               </div>
             </div>

@@ -4,14 +4,20 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 
 export const useChatStore = create((set, get) => ({
+  // Standard Chat State
   messages: [],
   conversations: [],
   selectedConversation: null,
-  allUsers: [],
   isConversationsLoading: false,
   isMessagesLoading: false,
+  
+  // Friend State
+  friends: [],
+  pendingRequests: [],
+  searchedUsers: [],
+  allUsers: [], // Keeping this for group/friend search logic
 
-  // Helper function to update conversation list
+  // Helper function
   updateConversationInList: (updatedConvo) => {
     // The backend returns all participants, we need to filter out the auth user
     // for consistent frontend display
@@ -59,13 +65,36 @@ export const useChatStore = create((set, get) => ({
 
   getMessages: async () => {
     const { selectedConversation } = get();
-    if (!selectedConversation) return;
+    if (!selectedConversation) return; // Prevent fetching if no convo is selected
 
     set({ isMessagesLoading: true });
     try {
+      // This API call now marks messages as read on the backend
       const res = await axiosInstance.get(`/messages/${selectedConversation._id}`);
-      set({ messages: res.data || [] }); 
-      } catch (error) {
+      set({ messages: res.data || [] });
+      
+      // Mark the conversation as read in the sidebar (optimistic update)
+      set(state => ({
+        conversations: state.conversations.map(convo => {
+          if (convo._id === selectedConversation._id && convo.latestMessage) {
+            // Check if authUser is already in readBy
+            const authUserId = useAuthStore.getState().authUser._id;
+            const alreadyRead = convo.latestMessage.readBy.some(id => id === authUserId || id._id === authUserId);
+            if (!alreadyRead) {
+                return {
+                ...convo,
+                latestMessage: {
+                    ...convo.latestMessage,
+                    readBy: [...convo.latestMessage.readBy, authUserId] 
+                }
+                };
+            }
+          }
+          return convo;
+        })
+      }));
+
+    } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch messages");
       set({ messages: [] });
     } finally {
@@ -75,7 +104,7 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedConversation, messages } = get();
-    if (!selectedConversation) return;
+    if (!selectedConversation) return; // Don't send if no convo selected
 
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedConversation._id}`, messageData);
@@ -94,9 +123,8 @@ export const useChatStore = create((set, get) => ({
             return {
               ...convo,
               latestMessage: {
-                text: newMessage.text || "Image",
-                senderId: { fullName: newMessage.senderId.fullName },
-                createdAt: newMessage.createdAt,
+                ...newMessage, // Use the full message as latestMessage
+                senderId: { fullName: newMessage.senderId.fullName }, // Keep sender simple
               },
             };
           }
@@ -110,14 +138,21 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
+    socket.off("newMessage"); // Prevent duplicate listeners
     socket.on("newMessage", (newMessage) => {
       const { selectedConversation } = get();
+      
+      // Add message to list if chat is open
       if (selectedConversation && newMessage.conversationId === selectedConversation._id) {
         set({
           messages: [...get().messages, newMessage],
         });
       }
+      
+      // Update latest message in sidebar
       get().updateConversationLatestMessage(newMessage);
+
+      // Show toast if chat is not open
       if (!selectedConversation || newMessage.conversationId !== selectedConversation._id) {
          toast.success(`New message from ${newMessage.senderId.fullName}`);
       }
@@ -132,9 +167,78 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedConversation: (conversation) => {
-    set({ selectedConversation: conversation, messages: [] });
-    get().getMessages();
+    set({ selectedConversation: conversation, messages: [] }); // Clear old messages
+    if (conversation) {
+        get().getMessages(); // This now triggers the "mark as read"
+    }
   },
+  
+  listenForMessagesRead: () => {
+    const socket = useAuthStore.getState().socket;
+    if (!socket) {
+      console.warn("Socket not found, can't listen for read messages.");
+      return;
+    }
+    
+    socket.off("messagesRead"); // Prevent duplicate listeners
+    
+    socket.on("messagesRead", ({ conversationId, readByUserId, readByUser }) => {
+      set(state => {
+        // Update the conversation list
+        const newConversations = state.conversations.map(convo => {
+          if (convo._id === conversationId && convo.latestMessage) {
+            const alreadyRead = convo.latestMessage.readBy.some(id => id === readByUserId || id._id === readByUserId);
+            return {
+              ...convo,
+              latestMessage: {
+                ...convo.latestMessage,
+                readBy: alreadyRead ? convo.latestMessage.readBy : [...convo.latestMessage.readBy, readByUserId]
+              }
+            };
+          }
+          return convo;
+        });
+
+        // Update messages in the currently open chat
+        if (state.selectedConversation?._id !== conversationId) {
+          return { conversations: newConversations }; // Only update sidebar
+        }
+
+        const updatedMessages = state.messages.map(message => {
+            const alreadyRead = message.readBy.some(user => user._id === readByUserId);
+            if (!alreadyRead) {
+                return {
+                    ...message,
+                    readBy: [...message.readBy, readByUser]
+                };
+            }
+            return message;
+        });
+        
+        return { 
+          messages: updatedMessages,
+          conversations: newConversations
+        };
+      });
+    });
+  },
+
+  listenForDeletedMessages: () => {
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+    socket.off("messageDeleted");
+    socket.on("messageDeleted", (deletedMessage) => {
+      set((state) => ({
+        messages: state.messages.map((message) =>
+          message._id === deletedMessage._id
+            ? deletedMessage 
+            : message
+        ),
+      }));
+    });
+  },
+  
+  // Friend & Group Actions
   
   findOrCreateConversation: async (userId, callback) => {
     try {
@@ -143,7 +247,7 @@ export const useChatStore = create((set, get) => ({
         set(state => {
             const exists = state.conversations.some(c => c._id === newConvo._id);
             if (exists) {
-                return {};
+                return { conversations: state.conversations.map(c => c._id === newConvo._id ? newConvo : c) };
             }
             return { conversations: [newConvo, ...state.conversations] };
         });
@@ -176,26 +280,89 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  listenForDeletedMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    if (!socket) {
-      console.warn("Socket not found, can't listen for deleted messages.");
-      return;
+  searchUsers: async (username) => {
+    if (!username.trim()) {
+      return set({ searchedUsers: [] });
     }
-    socket.off("messageDeleted");
-    socket.on("messageDeleted", (deletedMessage) => {
-      set((state) => ({
-        messages: state.messages.map((message) =>
-          message._id === deletedMessage._id
-            ? deletedMessage 
-            : message
-        ),
-      }));
-    });
+    try {
+      const res = await axiosInstance.get(`/users/search?username=${username}`);
+      set({ searchedUsers: res.data || [] });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to search users");
+    }
   },
 
-  // NEW ACTIONS FOR GROUP MANAGEMENT
+  sendFriendRequest: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/users/friend-request/send/${userId}`);
+      toast.success(res.data.message);
+      set(state => ({
+        searchedUsers: state.searchedUsers.map(user => 
+          user._id === userId 
+          ? { ...user, friendRequestsSent: [...(user.friendRequestsSent || []), useAuthStore.getState().authUser._id] } 
+          : user
+        )
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to send request");
+    }
+  },
 
+  getPendingRequests: async () => {
+    try {
+      const res = await axiosInstance.get("/users/friend-requests/pending");
+      set({ pendingRequests: res.data || [] });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to get requests");
+    }
+  },
+
+  acceptFriendRequest: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/users/friend-request/accept/${userId}`);
+      toast.success(res.data.message);
+      set(state => ({
+        pendingRequests: state.pendingRequests.filter(req => req._id !== userId),
+        friends: [...state.friends, state.pendingRequests.find(req => req._id === userId)],
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to accept request");
+    }
+  },
+
+  rejectFriendRequest: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/users/friend-request/reject/${userId}`);
+      toast.success(res.data.message);
+      set(state => ({
+        pendingRequests: state.pendingRequests.filter(req => req._id !== userId),
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to reject request");
+    }
+  },
+
+  getFriends: async () => {
+    try {
+      const res = await axiosInstance.get("/users/friends");
+      set({ friends: res.data || [] });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to get friends");
+    }
+  },
+
+  removeFriend: async (userId) => {
+    try {
+      const res = await axiosInstance.delete(`/users/friend/remove/${userId}`);
+      toast.success(res.data.message);
+      set(state => ({
+        friends: state.friends.filter(friend => friend._id !== userId),
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove friend");
+    }
+  },
+  
   updateGroupDetails: async (conversationId, data) => {
     try {
       const res = await axiosInstance.put(`/conversations/${conversationId}/update`, data);
@@ -230,7 +397,6 @@ export const useChatStore = create((set, get) => ({
     try {
       await axiosInstance.post(`/conversations/${conversationId}/leave`);
       
-      // Remove from conversation list and unselect
       set(state => ({
         conversations: state.conversations.filter(c => c._id !== conversationId),
         selectedConversation: state.selectedConversation?._id === conversationId 

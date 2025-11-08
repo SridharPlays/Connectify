@@ -3,13 +3,15 @@ import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 
 const CreateGroupModal = ({ onClose }) => {
-  const { allUsers, getAllUsers, createGroup } = useChatStore();
+  // 1. Get friends list instead of allUsers
+  const { friends, getFriends, createGroup } = useChatStore();
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   useEffect(() => {
-    getAllUsers();
-  }, [getAllUsers]);
+    // 2. Fetch friends on load
+    getFriends();
+  }, [getFriends]);
 
   const handleUserSelect = (userId) => {
     setSelectedUsers((prev) =>
@@ -22,7 +24,7 @@ const CreateGroupModal = ({ onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (selectedUsers.length < 2) {
-      return toast.error("Must select at least 2 users");
+      return toast.error("Must select at least 2 friends");
     }
     if (!groupName.trim()) {
       return toast.error("Group name is required");
@@ -32,7 +34,7 @@ const CreateGroupModal = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-base-100 rounded-lg p-6 w-full max-w-md">
         <h2 className="text-2xl font-bold mb-4">Create Group Chat</h2>
         <form onSubmit={handleSubmit}>
@@ -49,9 +51,13 @@ const CreateGroupModal = ({ onClose }) => {
             />
           </div>
 
-          <h3 className="text-lg font-semibold mb-2">Select Users</h3>
+          <h3 className="text-lg font-semibold mb-2">Select Friends</h3>
           <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-            {allUsers.map((user) => {
+            {/* 3. Map over friends list */}
+            {friends.length === 0 && (
+                <p className="text-center text-base-content/70">You need at least 2 friends to create a group.</p>
+            )}
+            {friends.map((user) => {
               const initial = user.fullName ? user.fullName[0].toUpperCase() : "?";
               const profilePic = user.profilePic;
 
@@ -63,7 +69,6 @@ const CreateGroupModal = ({ onClose }) => {
                     checked={selectedUsers.includes(user._id)}
                     onChange={() => handleUserSelect(user._id)}
                   />
-                  {/* AVATAR LOGIC START */}
                   <div className="avatar">
                     <div className="size-8 rounded-full border-2 border-base-300/20 overflow-hidden">
                       {profilePic ? (
@@ -79,8 +84,7 @@ const CreateGroupModal = ({ onClose }) => {
                       )}
                     </div>
                   </div>
-                  {/* AVATAR LOGIC END */}
-                  <span className="label-text">{user.fullName}</span> 
+                  <span className="label-text">{user.fullName} (@{user.username})</span> 
                 </label>
               );
             })}

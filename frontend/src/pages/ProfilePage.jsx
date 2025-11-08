@@ -1,24 +1,66 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User } from "lucide-react";
+import { Camera, Mail, User, AtSign, Edit2, Check, X, Loader2, Info } from "lucide-react"; // Import new icons
+import toast from "react-hot-toast";
+
+// Helper function to calculate cooldown
+const getCooldown = (lastChangedDate) => {
+    if (!lastChangedDate) {
+        return { canChange: true, daysLeft: 0 };
+    }
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const lastChanged = new Date(lastChangedDate);
+    const diff = new Date() - lastChanged;
+    
+    if (diff < sevenDays) {
+        const timeLeft = sevenDays - diff;
+        const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+        return { canChange: false, daysLeft };
+    }
+    
+    return { canChange: true, daysLeft: 0 };
+};
+
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
+  
   const [selectedImg, setSelectedImg] = useState(null);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [username, setUsername] = useState(authUser.username);
+  
+  // Get cooldown status
+  const { canChange, daysLeft } = getCooldown(authUser.usernameLastUpdatedAt);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-
     reader.readAsDataURL(file);
 
     reader.onload = async () => {
       const base64Image = reader.result;
       setSelectedImg(base64Image);
+      // The store's updateProfile action is generic, so this just works
       await updateProfile({ profilePic: base64Image });
     };
+  };
+
+  const handleUsernameUpdate = async () => {
+    if (username.trim() === authUser.username) {
+        return setIsEditingUsername(false);
+    }
+    if (username.trim().length < 3) {
+        return toast.error("Username must be at least 3 characters");
+    }
+    if (username.includes(" ")) {
+        return toast.error("Username cannot contain spaces");
+    }
+
+    // We pass the new username to the same updateProfile function
+    await updateProfile({ username });
+    setIsEditingUsername(false);
   };
 
   return (
@@ -31,7 +73,6 @@ const ProfilePage = () => {
           </div>
 
           {/* avatar upload section */}
-
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
@@ -65,7 +106,9 @@ const ProfilePage = () => {
             </p>
           </div>
 
+          {/* USER DETAILS SECTION */}
           <div className="space-y-6">
+            {/* Full Name (Not editable) */}
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <User className="w-4 h-4" />
@@ -74,6 +117,55 @@ const ProfilePage = () => {
               <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName}</p>
             </div>
 
+            {/* Username (Editable with Cooldown) */}
+            <div className="space-y-1.5">
+              <div className="text-sm text-zinc-400 flex items-center gap-2">
+                <AtSign className="w-4 h-4" />
+                Username
+              </div>
+              
+              {isEditingUsername ? (
+                // EDITING STATE
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={isUpdatingProfile}
+                  />
+                  <button className="btn btn-success btn-circle" onClick={handleUsernameUpdate} disabled={isUpdatingProfile}>
+                    {isUpdatingProfile ? <Loader2 className="animate-spin" /> : <Check />}
+                  </button>
+                  <button className="btn btn-ghost btn-circle" onClick={() => setIsEditingUsername(false)} disabled={isUpdatingProfile}>
+                    <X />
+                  </button>
+                </div>
+              ) : (
+                // DISPLAY STATE
+                <div className="flex items-center gap-2">
+                  <p className="px-4 py-2.5 bg-base-200 rounded-lg border flex-1">{authUser?.username}</p>
+                  <button 
+                    className="btn btn-ghost btn-circle" 
+                    onClick={() => setIsEditingUsername(true)}
+                    disabled={!canChange || isUpdatingProfile}
+                    title={canChange ? "Edit username" : `On cooldown`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              
+              {/* Cooldown Message */}
+              {!canChange && daysLeft > 0 && (
+                 <div className="text-xs text-info flex items-center gap-1 p-1">
+                    <Info className="size-3" />
+                    You can change your username again in {daysLeft} day(s).
+                </div>
+              )}
+            </div>
+
+            {/* Email (Not editable) */}
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <Mail className="w-4 h-4" />
@@ -83,6 +175,7 @@ const ProfilePage = () => {
             </div>
           </div>
 
+          {/* Account Info */}
           <div className="mt-6 bg-base-300 rounded-xl p-6">
             <h2 className="text-lg font-medium  mb-4">Account Information</h2>
             <div className="space-y-3 text-sm">

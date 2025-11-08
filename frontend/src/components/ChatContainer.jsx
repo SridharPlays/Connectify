@@ -6,34 +6,40 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils.js";
-import { Trash2 } from "lucide-react";
+import { Trash2, Check, CheckCheck } from "lucide-react"; // Import Check and CheckCheck
 
 const ChatContainer = () => {
   const {
     messages,
     getMessages,
     isMessagesLoading,
-    selectedConversation, // Changed
+    selectedConversation,
     subscribeToMessages,
     unsubscribeFromMessages,
     deleteMessage,
     listenForDeletedMessages,
+    listenForMessagesRead, // 1. Import new listener
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
   useEffect(() => {
-    // getMessages is now parameter-free, it uses the store's state
     getMessages(); 
     subscribeToMessages();
     listenForDeletedMessages();
-    return () => unsubscribeFromMessages();
+    listenForMessagesRead(); // 2. Call new listener
+    
+    return () => {
+      unsubscribeFromMessages();
+      // We'll add an unsubscribe in the store or here if needed
+    };
   }, [
-    selectedConversation._id, // Re-run when conversation changes
+    selectedConversation._id,
     getMessages,
     subscribeToMessages,
     unsubscribeFromMessages,
     listenForDeletedMessages,
+    listenForMessagesRead, // 3. Add to dependency array
   ]);
 
   useEffect(() => {
@@ -41,16 +47,6 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
-
-  const getSenderInfo = (senderId) => {
-    if (senderId === authUser._id) {
-        return authUser;
-    }
-
-    const sender = selectedConversation.participants.find(p => p._id === senderId);
-    return sender || { fullName: "User", profilePic: "/avatar.png" }; // Fallback
-  };
-
 
   if (isMessagesLoading) {
     return (
@@ -72,18 +68,47 @@ const ChatContainer = () => {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => {
+          if (!message || !message.senderId) {
+             console.warn("Skipping rendering a malformed message:", message);
+             return null; // Skip rendering if message is invalid
+          }
+
           const isSenderAuthUser = message.senderId._id === authUser._id;
-          
           const currentUser = message.senderId; 
-          
           const profilePic = currentUser.profilePic;
-          const initial = currentUser.fullName
-            ? currentUser.fullName[0].toUpperCase()
-            : "?";
+          const initial = currentUser.fullName ? currentUser.fullName[0].toUpperCase() : "?";
+
+          // --- 4. Read Receipt Logic ---
+          let readStatusIcon = null;
+          if (isSenderAuthUser && !message.isDeleted) {
+            const readByOthers = message.readBy.filter(
+              (user) => user._id !== authUser._id
+            );
+            
+            if (selectedConversation.isGroupChat) {
+                // Group Chat: Seen by all (blue) or at least 1 (grey)
+                const isReadByAll = readByOthers.length === selectedConversation.participants.length;
+                if (isReadByAll) {
+                    readStatusIcon = <CheckCheck className="size-4 text-blue-500" />;
+                } else if (readByOthers.length > 0) {
+                    readStatusIcon = <CheckCheck className="size-4" />;
+                } else {
+                    readStatusIcon = <Check className="size-4" />; // Sent
+                }
+            } else {
+                // 1-on-1 Chat: Seen (blue) or Sent (grey)
+                if (readByOthers.length > 0) {
+                    readStatusIcon = <CheckCheck className="size-4 text-blue-500" />; // Read
+                } else {
+                    readStatusIcon = <Check className="size-4" />; // Sent
+                }
+            }
+          }
+          // --- End Read Receipt Logic ---
 
           return (
             <div
-              key={message._id}
+              key={message._id || index} // Use index as fallback
               className={`chat ${
                 isSenderAuthUser ? "chat-end" : "chat-start"
               }`}
@@ -111,7 +136,6 @@ const ChatContainer = () => {
                     : "bg-base-200 text-base-content"
                 } flex flex-col relative group`}
               >
-                {/* Show sender name in group chats */}
                 {!isSenderAuthUser && selectedConversation.isGroupChat && (
                     <div className="text-xs font-bold opacity-60 mb-1">
                         {currentUser.fullName}
@@ -145,10 +169,12 @@ const ChatContainer = () => {
                   </div>
                 )}
                 
-                <div className="hidden group-hover:flex transition-all duration-500 justify-start">
+                {/* 5. Render Time and Read Status */}
+                <div className="flex items-center gap-1 justify-end transition-all duration-500 mt-1">
                   <time className="text-[10px] opacity-50">
                     {formatMessageTime(message.createdAt)}
                   </time>
+                  {isSenderAuthUser && !message.isDeleted && readStatusIcon}
                 </div>
               </div>
             </div>

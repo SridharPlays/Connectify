@@ -7,8 +7,8 @@ import toast from "react-hot-toast";
 const GroupSettingsModal = ({ onClose }) => {
   const { 
     selectedConversation, 
-    allUsers, 
-    getAllUsers, 
+    friends, // 1. Get friends
+    getFriends, // 1. Get getFriends
     updateGroupDetails, 
     addParticipant, 
     removeParticipant,
@@ -21,28 +21,25 @@ const GroupSettingsModal = ({ onClose }) => {
   const [isNameEditing, setIsNameEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  const [usersToAdd, setUsersToAdd] = useState([]); // For the "add" dropdown
+  const [usersToAdd, setUsersToAdd] = useState([]);
 
-  // The group admin ID is stored on the conversation
   const isAdmin = selectedConversation.groupAdmin === authUser._id;
 
-  // Fetch all users on mount to populate the "add participant" list
+  // 2. Fetch friends on mount
   useEffect(() => {
-    getAllUsers();
-  }, [getAllUsers]);
+    getFriends();
+  }, [getFriends]);
 
-  // Filter users who are NOT already in the group
+  // 3. Filter FRIENDS who are NOT already in the group
   useEffect(() => {
-    if (allUsers.length > 0) {
-      const currentParticipantIds = [
-        ...selectedConversation.participants.map(p => p._id), 
-        authUser._id // Also include the auth user
-      ];
+    if (friends.length > 0) {
+      const currentParticipantIds = selectedConversation.participants.map(p => p._id);
+      
       setUsersToAdd(
-        allUsers.filter(user => !currentParticipantIds.includes(user._id))
+        friends.filter(friend => !currentParticipantIds.includes(friend._id))
       );
     }
-  }, [allUsers, selectedConversation.participants, authUser._id]);
+  }, [friends, selectedConversation.participants]);
 
   // Handle Group Icon Upload
   const handleImageUpload = async (e) => {
@@ -53,7 +50,7 @@ const GroupSettingsModal = ({ onClose }) => {
     reader.readAsDataURL(file);
     reader.onload = async () => {
       const base64Image = reader.result;
-      setSelectedImg(base64Image); // Show preview
+      setSelectedImg(base64Image);
       await updateGroupDetails(selectedConversation._id, { groupIconBase64: base64Image });
       setIsUploading(false);
     };
@@ -73,8 +70,7 @@ const GroupSettingsModal = ({ onClose }) => {
     const userIdToAdd = e.target.value;
     if (!userIdToAdd) return;
     await addParticipant(selectedConversation._id, userIdToAdd);
-    // Reset dropdown after adding
-    e.target.value = "";
+    e.target.value = ""; // Reset dropdown
   };
 
   // Handle Remove Participant
@@ -107,6 +103,11 @@ const GroupSettingsModal = ({ onClose }) => {
       </div>
     );
   };
+
+  // Find the full user object for the admin
+  const adminUser = selectedConversation.groupAdmin === authUser._id 
+    ? authUser 
+    : selectedConversation.participants.find(p => p._id === selectedConversation.groupAdmin);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -142,7 +143,6 @@ const GroupSettingsModal = ({ onClose }) => {
                 </label>
               )}
             </div>
-            {/* Group Name Input */}
             <div className="flex items-center gap-2">
               {isNameEditing ? (
                 <input
@@ -169,15 +169,15 @@ const GroupSettingsModal = ({ onClose }) => {
               <div className="flex items-center gap-2">
                 <UserPlus className="size-5" />
                 <select className="select select-bordered flex-1" onChange={handleAddParticipant} defaultValue="">
-                  <option value="" disabled>Select a user to add...</option>
+                  <option value="" disabled>Select a friend to add...</option>
                   {usersToAdd.length > 0 ? (
                     usersToAdd.map(user => (
                       <option key={user._id} value={user._id}>
-                        {user.fullName}
+                        {user.fullName} (@{user.username})
                       </option>
                     ))
                   ) : (
-                    <option disabled>No users to add</option>
+                    <option disabled>All friends are in the group</option>
                   )}
                 </select>
               </div>
@@ -188,28 +188,33 @@ const GroupSettingsModal = ({ onClose }) => {
           <div className="mb-6">
             <h4 className="font-semibold mb-2">{selectedConversation.participants.length + 1} Members</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {/* Admin (You) */}
-              <div className="flex items-center justify-between p-2 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {getAvatar(authUser)}
-                  <span>{authUser.fullName} (You)</span>
+              
+              {/* Admin (display them first) */}
+              {adminUser && (
+                <div className="flex items-center justify-between p-2 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {getAvatar(adminUser)}
+                    <span>{adminUser.fullName} {adminUser._id === authUser._id ? "(You)" : ""}</span>
+                  </div>
+                  <Shield className="size-5 text-success" title="Group Admin" />
                 </div>
-                <Shield className="size-5 text-success" title="Group Admin" />
-              </div>
+              )}
               
               {/* Other Participants */}
-              {selectedConversation.participants.map(user => (
-                <div key={user._id} className="flex items-center justify-between p-2 rounded-lg hover:bg-base-200">
-                  <div className="flex items-center gap-3">
-                    {getAvatar(user)}
-                    <span>{user.fullName}</span>
+              {selectedConversation.participants
+                .filter(user => user._id !== selectedConversation.groupAdmin) // Filter out admin
+                .map(user => (
+                  <div key={user._id} className="flex items-center justify-between p-2 rounded-lg hover:bg-base-200">
+                    <div className="flex items-center gap-3">
+                      {getAvatar(user)}
+                      <span>{user.fullName} {user._id === authUser._id ? "(You)" : ""}</span>
+                    </div>
+                    {isAdmin && user._id !== authUser._id && (
+                      <button className="btn btn-ghost btn-circle btn-sm text-error" onClick={() => handleRemoveParticipant(user._id)}>
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
                   </div>
-                  {isAdmin && (
-                    <button className="btn btn-ghost btn-circle btn-sm text-error" onClick={() => handleRemoveParticipant(user._id)}>
-                      <Trash2 className="size-4" />
-                    </button>
-                  )}
-                </div>
               ))}
             </div>
           </div>
