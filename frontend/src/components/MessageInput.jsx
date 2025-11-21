@@ -8,6 +8,7 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const fileInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const { sendMessage } = useChatStore();
@@ -34,20 +35,23 @@ const MessageInput = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
+    if (isPending) return;
 
+    setIsPending(true);
     try {
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
       });
 
-      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setShowEmojiPicker(false);
     } catch (error) {
       console.error("Failed to send message:", error);
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -113,6 +117,7 @@ const MessageInput = () => {
             className={`hidden sm:flex btn btn-circle`}
             title="Emojis"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            disabled={isPending}
           >
             <Smile size={24} />
           </button>
@@ -123,6 +128,7 @@ const MessageInput = () => {
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            disabled={isPending}
           />
           <input
             type="file"
@@ -130,6 +136,7 @@ const MessageInput = () => {
             className="hidden"
             ref={fileInputRef}
             onChange={handleImageChange}
+            disabled={isPending}
           />
 
           <button
@@ -137,6 +144,7 @@ const MessageInput = () => {
             className={`hidden sm:flex btn btn-circle
                      ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
             onClick={() => fileInputRef.current?.click()}
+            disabled={isPending}
           >
             <Image size={24} />
           </button>
@@ -144,13 +152,13 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-md btn-circle flex items-center justify-center bg-primary"
-          disabled={!text.trim() && !imagePreview}
+          disabled={(!text.trim() && !imagePreview) || isPending}
         >
-          <Send size={24} />
+          {isPending ? <span className="loading loading-spinner loading-xs"></span> : <Send size={24} />}
         </button>
       </form>
     </div>
   );
 };
 
-export default MessageInput;  
+export default MessageInput;

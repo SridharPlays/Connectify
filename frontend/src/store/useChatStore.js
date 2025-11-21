@@ -15,7 +15,7 @@ export const useChatStore = create((set, get) => ({
   friends: [],
   pendingRequests: [],
   searchedUsers: [],
-  allUsers: [], // Keeping this for group/friend search logic
+  allUsers: [],
 
   // Helper function
   updateConversationInList: (updatedConvo) => {
@@ -62,7 +62,7 @@ export const useChatStore = create((set, get) => ({
 
   getMessages: async () => {
     const { selectedConversation } = get();
-    if (!selectedConversation) return; // Prevent fetching if no convo is selected
+    if (!selectedConversation) return;
 
     set({ isMessagesLoading: true });
     try {
@@ -98,7 +98,7 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedConversation, messages } = get();
-    if (!selectedConversation) return; // Don't send if no convo selected
+    if (!selectedConversation) return;
 
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedConversation._id}`, messageData);
@@ -109,17 +109,22 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  updateConversationLatestMessage: (newMessage) => {
+  markMessagesAsRead: async (conversationId) => {
+    try {
+        await axiosInstance.put(`/messages/mark-as-read/${conversationId}`);
+    } catch (error) {
+        console.error("Failed to mark messages as read:", error);
+    }
+  },
+
+updateConversationLatestMessage: (newMessage) => {
     set((state) => ({
       conversations: state.conversations
         .map((convo) => {
           if (convo._id === newMessage.conversationId) {
             return {
               ...convo,
-              latestMessage: {
-                ...newMessage, // Use the full message as latestMessage
-                senderId: { fullName: newMessage.senderId.fullName },
-              },
+              latestMessage: newMessage,
             };
           }
           return convo;
@@ -141,6 +146,8 @@ export const useChatStore = create((set, get) => ({
         set({
           messages: [...get().messages, newMessage],
         });
+        
+        get().markMessagesAsRead(selectedConversation._id);
       }
       
       // Update latest message in sidebar
@@ -161,23 +168,21 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedConversation: (conversation) => {
-    set({ selectedConversation: conversation, messages: [] }); // Clear old messages
+    set({ selectedConversation: conversation, messages: [] });
     if (conversation) {
-        get().getMessages(); // This now triggers the "mark as read"
+        get().getMessages();
     }
   },
   
   listenForMessagesRead: () => {
     const socket = useAuthStore.getState().socket;
-    if (!socket) {
-      console.warn("Socket not found, can't listen for read messages.");
-      return;
-    }
+    if (!socket) return;
     
     socket.off("messagesRead");
     
     socket.on("messagesRead", ({ conversationId, readByUserId, readByUser }) => {
       set(state => {
+        // Update conversation list
         const newConversations = state.conversations.map(convo => {
           if (convo._id === conversationId && convo.latestMessage) {
             const alreadyRead = convo.latestMessage.readBy.some(id => id === readByUserId || id._id === readByUserId);
@@ -192,11 +197,7 @@ export const useChatStore = create((set, get) => ({
           return convo;
         });
 
-        // Update messages in the currently open chat
-        if (state.selectedConversation?._id !== conversationId) {
-          return { conversations: newConversations }; // Only update sidebar
-        }
-
+        // Update active chat messages
         const updatedMessages = state.messages.map(message => {
             const alreadyRead = message.readBy.some(user => user._id === readByUserId);
             if (!alreadyRead) {
@@ -231,7 +232,6 @@ export const useChatStore = create((set, get) => ({
     });
   },
   
-  // Friend & Group Actions
   findOrCreateConversation: async (userId, callback) => {
     try {
         const res = await axiosInstance.post(`/conversations/find/${userId}`);

@@ -78,11 +78,26 @@ const Sidebar = () => {
             const initial = name ? name[0].toUpperCase() : "?";
             const latestMessage = convo.latestMessage;
             let isUnread = false;
-            if (latestMessage && latestMessage.senderId._id !== authUser._id) {
+            
+            // Check unread status
+            if (latestMessage && latestMessage.senderId?._id !== authUser._id) {
                 isUnread = !latestMessage.readBy.includes(authUser._id);
             }
-            const latestMessageText = latestMessage?.text;
-            const latestMessageSender = latestMessage?.senderId?.fullName?.split(" ")[0];
+
+            let subtitle = convo.isGroupChat ? "Group created" : "Chat started";
+            
+            if (latestMessage) {
+                const senderId = latestMessage.senderId?._id || latestMessage.senderId;
+                const isMe = senderId === authUser._id;
+                const senderName = latestMessage.senderId?.fullName?.split(" ")[0] || "User";
+                const messageText = latestMessage.text || (latestMessage.image ? "Sent an image" : "");
+                
+                if (isMe) {
+                    subtitle = `You: ${messageText}`;
+                } else {
+                    subtitle = `${senderName}: ${messageText}`;
+                }
+            }
 
             return (
               <button
@@ -127,9 +142,7 @@ const Sidebar = () => {
                     {name}
                   </div>
                   <div className={`text-sm truncate ${isUnread ? "font-bold text-base-content/90" : "text-base-content/70"}`}>
-                    {latestMessageText 
-                      ? `${latestMessageSender || '...'} ${latestMessageText}` 
-                      : (convo.isGroupChat ? "Group created" : "Chat started")}
+                    {subtitle}
                   </div>
                 </div>
                 

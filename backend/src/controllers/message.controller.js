@@ -46,6 +46,7 @@ export const getMessages = async (req, res) => {
             .populate("senderId", "fullName profilePic")
             .populate("readBy", "fullName profilePic _id");
 
+        // Emit event so other users see the read receipt
         const readByUser = {
             _id: req.user._id,
             fullName: req.user.fullName,
@@ -71,7 +72,6 @@ export const getMessages = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
-
 
 export const sendMessage = async (req, res) => {
     try {
@@ -152,6 +152,8 @@ export const deleteMessage = async (req, res) => {
 
         await message.save();
 
+        await message.populate("senderId", "fullName profilePic");
+
         conversation.participants.forEach(participantId => {
             const socketId = getReceiverSocketId(participantId.toString());
             if (socketId) {
@@ -162,6 +164,59 @@ export const deleteMessage = async (req, res) => {
         res.status(200).json({ message: "Message deleted successfully." });
     } catch (error) {
         console.log("Error in DeleteMessage Controller", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const markMessagesAsRead = async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const authUserId = req.user._id;
+
+        const conversation = await Conversation.findOne({
+            _id: conversationId,
+            participants: authUserId,
+        });
+
+        if (!conversation) {
+            return res.status(404).json({ message: "Conversation not found" });
+        }
+
+        // Update all messages in this conversation
+        await Message.updateMany(
+            {
+                conversationId: conversationId,
+                senderId: { $ne: authUserId },
+                readBy: { $ne: authUserId }
+            },
+            {
+                $addToSet: { readBy: authUserId }
+            }
+        );
+
+        const readByUser = {
+            _id: req.user._id,
+            fullName: req.user.fullName,
+            profilePic: req.user.profilePic
+        };
+
+        // Emit socket event to update UI in real-time
+        conversation.participants.forEach(participantId => {
+            if (participantId.toString() !== authUserId.toString()) {
+                const socketId = getReceiverSocketId(participantId.toString());
+                if (socketId) {
+                    io.to(socketId).emit("messagesRead", {
+                        conversationId: conversationId,
+                        readByUserId: authUserId,
+                        readByUser: readByUser
+                    });
+                }
+            }
+        });
+
+        res.status(200).json({ message: "Messages marked as read" });
+    } catch (error) {
+        console.error("Error in markMessagesAsRead:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
