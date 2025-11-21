@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, MessageSquare, User } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, MessageSquare, User, AlertTriangle } from "lucide-react";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,15 +10,37 @@ const LoginPage = () => {
     loginId: "",
     password: "",
   });
-  const { login, isLoggingIn } = useAuthStore();
+  
+  // Reset Modal State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+
+  const { login, isLoggingIn, sendPasswordReset } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    login(formData);
+    const result = await login(formData);
+    
+    // Check if the login failed due to too many attempts
+    if (!result.success && result.error?.showReset) {
+        setResetEmail(result.error.email || ""); // Backend sends email if we need it
+        setShowResetModal(true);
+    }
+  };
+
+  const handleResetConfirm = async () => {
+    if (resetEmail || formData.loginId) {
+        // Use the email from backend response, or fall back to input if it looks like an email
+        const emailToSend = resetEmail || (formData.loginId.includes("@") ? formData.loginId : null);
+        if(emailToSend) {
+            await sendPasswordReset(emailToSend);
+        }
+    }
+    setShowResetModal(false);
   };
 
   return (
-    <div className="h-screen grid lg:grid-cols-2">
+    <div className="h-screen grid lg:grid-cols-2 relative">
       {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
@@ -113,6 +135,35 @@ const LoginPage = () => {
         title={"Welcome back!"}
         subtitle={"Sign in to continue your conversations and catch up with your messages."}
       />
+
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-base-100 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center space-y-4">
+            <div className="flex justify-center text-warning">
+              <AlertTriangle className="w-12 h-12" />
+            </div>
+            <h3 className="text-lg font-bold">Trouble Logging In?</h3>
+            <p className="text-base-content/70">
+              We noticed multiple failed attempts. Would you like to reset your password?
+            </p>
+            <div className="flex gap-3 justify-center mt-4">
+              <button 
+                className="btn btn-ghost" 
+                onClick={() => setShowResetModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleResetConfirm}
+              >
+                Yes, Reset Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

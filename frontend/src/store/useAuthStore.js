@@ -50,8 +50,11 @@ export const useAuthStore = create((set, get) => ({
             toast.success("Logged in successfully");
 
             get().connectSocket();
+            return { success: true };
         } catch (error) {
+            // Return error data to the component so it can handle specific flags like showReset
             toast.error(error.response.data.message);
+            return { success: false, error: error.response.data };
         } finally {
             set({ isLoggingIn: false });
         }
@@ -80,6 +83,29 @@ export const useAuthStore = create((set, get) => ({
             toast.error(error.response.data.message);
         } finally {
             set({ isUpdatingProfile: false });
+        }
+    },
+    
+    sendPasswordReset: async (email) => {
+        try {
+            const res = await axiosInstance.post("/auth/forgot-password", { email });
+            toast.success(res.data.message);
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to send reset link");
+        }
+    },
+
+    resetPassword: async (token, newPassword) => {
+        set({ isLoggingIn: true }); // Reusing loading state for convenience
+        try {
+            const res = await axiosInstance.post(`/auth/reset-password/${token}`, { password: newPassword });
+            toast.success(res.data.message);
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to reset password");
+            return false;
+        } finally {
+            set({ isLoggingIn: false });
         }
     },
 

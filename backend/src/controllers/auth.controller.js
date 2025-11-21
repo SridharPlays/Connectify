@@ -2,6 +2,8 @@ import User from "../models/user.model.js"
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js"
 import cloudinary from "../lib/cloudinary.js"
+import crypto from "crypto";
+import { sendResetEmail } from "../lib/email.js";
 
 export const signup = async (req, res) => {
     const { fullName, username, email, password } = req.body;
@@ -57,14 +59,33 @@ export const login = async (req, res) => {
         const user = await User.findOne({
             $or: [{ email: loginId }, { username: loginId }],
         });
+        
         if (!user) {
             return res.status(400).json({ message: "Invalid Credentials! " });
         }
 
         const isPasswordCorrect = await user.isPasswordCorrect(password);
+        
         if (!isPasswordCorrect) {
+            // Increment failed attempts
+            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+            await user.save();
+
+            if (user.failedLoginAttempts >= 3) {
+                return res.status(400).json({ 
+                    message: "Too many failed attempts.", 
+                    showReset: true,
+                    email: user.email // Send email back so frontend can use it for reset request
+                });
+            }
+
             return res.status(400).json({ message: "Invalid Credentials! " });
         }
+
+        // Reset attempts on successful login
+        user.failedLoginAttempts = 0;
+        await user.save();
+
         generateToken(user._id, res);
         res.status(200).json({
             _id: user._id,
@@ -156,3 +177,57 @@ export const checkAuth = (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
+
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(20).toString("hex");
+        
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+        await user.save();
+
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+        const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
+
+        await sendResetEmail(user.email, resetUrl);
+
+        res.status(200).json({ message: "Password reset link sent to email." });
+    } catch (error) {
+        console.error("Error in Forgot Password", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    console.log("Error in resetPassword controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
