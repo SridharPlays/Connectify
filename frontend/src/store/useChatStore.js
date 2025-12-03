@@ -139,21 +139,22 @@ updateConversationLatestMessage: (newMessage) => {
 
     socket.off("newMessage");
     socket.on("newMessage", (newMessage) => {
-      const { selectedConversation } = get();
+      const { selectedConversation, messages } = get();
       
-      // Add message to list if chat is open
       if (selectedConversation && newMessage.conversationId === selectedConversation._id) {
+        
+        const isDuplicate = messages.some(m => m._id === newMessage._id);
+        if (isDuplicate) return;
+
         set({
-          messages: [...get().messages, newMessage],
+          messages: [...messages, newMessage],
         });
         
         get().markMessagesAsRead(selectedConversation._id);
       }
       
-      // Update latest message in sidebar
       get().updateConversationLatestMessage(newMessage);
 
-      // Show toast if chat is not open
       if (!selectedConversation || newMessage.conversationId !== selectedConversation._id) {
          toast.success(`New message from ${newMessage.senderId.fullName}`);
       }
